@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Flow Reminders MVP</title>
+    <title>Service Flow Reminders MVP v2</title>
     <!-- Load Tailwind CSS from CDN for modern, responsive styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -16,9 +16,18 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
             border-radius: 0.75rem;
         }
-        /* Style for the confirmation modal */
         .modal {
             background-color: rgba(0, 0, 0, 0.5);
+        }
+        /* Ensure inputs are clearly visible */
+        input[type="date"], input[type="text"], input[type="tel"], input[type="number"] {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+        /* Make disabled fields look distinct */
+        input:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -43,56 +52,81 @@
         <div id="data-entry" class="card bg-white p-6 mb-8 hidden">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">1. Add New Service Record</h2>
             <form id="service-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Customer Name (Mandatory) -->
+                
+                <!-- ROW 1: Customer Details -->
                 <div>
                     <label for="customerName" class="block text-sm font-medium text-gray-700">Customer Name (Required)</label>
-                    <input type="text" id="customerName" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                    <input type="text" id="customerName" required class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
-                
-                <!-- Phone Number (Mandatory) -->
                 <div>
                     <label for="phoneNumber" class="block text-sm font-medium text-gray-700">Phone Number (Required for SMS)</label>
-                    <input type="tel" id="phoneNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                    <input type="tel" id="phoneNumber" required class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
 
-                <!-- Registration Number (Mandatory) -->
+                <!-- ROW 2: Vehicle ID and Model -->
                 <div>
                     <label for="regNumber" class="block text-sm font-medium text-gray-700">Vehicle Reg. Number (Required)</label>
-                    <input type="text" id="regNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border uppercase">
+                    <input type="text" id="regNumber" required class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 uppercase">
+                </div>
+                <div>
+                    <label for="vehicleModel" class="block text-sm font-medium text-gray-700">Vehicle Make / Model</label>
+                    <input type="text" id="vehicleModel" class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500" value="Two-Wheeler">
                 </div>
 
-                <!-- Next Service Date (Mandatory) -->
+                <!-- ROW 3: Last Service Details -->
                 <div>
-                    <label for="nextServiceDate" class="block text-sm font-medium text-gray-700">Next Service Date (Required)</label>
-                    <input type="date" id="nextServiceDate" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                    <label for="lastServiceDate" class="block text-sm font-medium text-gray-700">Last Service Date (Required)</label>
+                    <input type="date" id="lastServiceDate" required class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
-                
-                <!-- Last Service Date (Optional but useful) -->
                 <div>
-                    <label for="lastServiceDate" class="block text-sm font-medium text-gray-700">Last Service Date</label>
-                    <input type="date" id="lastServiceDate" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
-                </div>
-                
-                <!-- Service Type (Optional but useful) -->
-                <div>
-                    <label for="serviceType" class="block text-sm font-medium text-gray-700">Service Type (e.g., Oil Change)</label>
-                    <input type="text" id="serviceType" value="Oil Change" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                    <label for="lastOdometer" class="block text-sm font-medium text-gray-700">Last Odometer Reading (km) (Required)</label>
+                    <input type="number" id="lastOdometer" required min="0" value="0" class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
                 </div>
 
-                <!-- Reminder Preference (Optional selection) -->
+                <!-- ROW 4: Next Service Trigger (Date or Mileage) -->
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Reminder Channel</label>
-                    <div class="flex space-x-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Set Next Service Reminder By:</label>
+                    <div class="flex space-x-6 mb-2">
                         <label class="inline-flex items-center">
-                            <input type="checkbox" id="prefSMS" value="SMS" checked class="form-checkbox h-5 w-5 text-blue-600 rounded">
-                            <span class="ml-2 text-gray-700">SMS (Text Message)</span>
+                            <input type="radio" name="nextServiceType" value="date" id="typeDate" checked class="form-radio h-4 w-4 text-blue-600" onchange="toggleReminderInput()">
+                            <span class="ml-2 text-gray-700">Date</span>
                         </label>
                         <label class="inline-flex items-center">
-                            <input type="checkbox" id="prefEmail" value="Email" class="form-checkbox h-5 w-5 text-blue-600 rounded">
-                            <span class="ml-2 text-gray-700">Email</span>
+                            <input type="radio" name="nextServiceType" value="mileage" id="typeMileage" class="form-radio h-4 w-4 text-blue-600" onchange="toggleReminderInput()">
+                            <span class="ml-2 text-gray-700">Mileage</span>
                         </label>
                     </div>
                 </div>
+
+                <!-- Next Reminder Input Fields (Dynamic) -->
+                <div id="date-input-group">
+                    <label for="nextServiceDate" class="block text-sm font-medium text-gray-700">Next Service Date (mm/dd/yyyy)</label>
+                    <input type="date" id="nextServiceDate" class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div id="mileage-input-group" class="hidden">
+                    <label for="nextServiceMileage" class="block text-sm font-medium text-gray-700">Target Odometer (km) for Next Service</label>
+                    <input type="number" id="nextServiceMileage" min="0" class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <!-- Service Type and Preferences -->
+                <div>
+                    <label for="serviceType" class="block text-sm font-medium text-gray-700">Service Type (e.g., Oil Change)</label>
+                    <input type="text" id="serviceType" value="Oil Change" class="mt-1 block w-full rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div class="flex items-end space-x-4 mb-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Reminder Channel:</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="prefSMS" value="SMS" checked class="form-checkbox h-4 w-4 text-blue-600 rounded">
+                            <span class="ml-1 text-gray-700 text-sm">SMS</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="prefEmail" value="Email" class="form-checkbox h-4 w-4 text-blue-600 rounded">
+                            <span class="ml-1 text-gray-700 text-sm">Email</span>
+                        </label>
+                    </div>
+                </div>
+
 
                 <!-- Submit Button -->
                 <div class="md:col-span-2 mt-4">
@@ -125,7 +159,7 @@
                     <thead>
                         <tr>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle ID</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Service</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -137,6 +171,7 @@
                 </table>
             </div>
             <p id="user-id-display" class="mt-4 text-xs text-gray-400">User ID: <span id="current-user-id" class="font-mono">N/A</span></p>
+
         </div>
     </div>
 
@@ -146,26 +181,53 @@
             <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Service Record</h3>
             <form id="edit-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input type="hidden" id="edit-doc-id">
+                <input type="hidden" id="edit-service-type-hidden"> <!-- Used to carry over the original service type -->
                 
                 <div>
                     <label for="editCustomerName" class="block text-sm font-medium text-gray-700">Customer Name</label>
-                    <input type="text" id="editCustomerName" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                    <input type="text" id="editCustomerName" required class="mt-1 block w-full rounded-lg shadow-sm">
                 </div>
                 
                 <div>
                     <label for="editPhoneNumber" class="block text-sm font-medium text-gray-700">Phone Number</label>
-                    <input type="tel" id="editPhoneNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                    <input type="tel" id="editPhoneNumber" required class="mt-1 block w-full rounded-lg shadow-sm">
                 </div>
 
                 <div>
                     <label for="editRegNumber" class="block text-sm font-medium text-gray-700">Vehicle Reg. Number</label>
-                    <input type="text" id="editRegNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border uppercase" disabled>
+                    <input type="text" id="editRegNumber" required class="mt-1 block w-full rounded-lg shadow-sm uppercase" disabled>
+                </div>
+                 
+                <div>
+                    <label for="editLastOdometer" class="block text-sm font-medium text-gray-700">Last Odometer Reading (km)</label>
+                    <input type="number" id="editLastOdometer" required min="0" class="mt-1 block w-full rounded-lg shadow-sm">
                 </div>
 
-                <div>
-                    <label for="editNextServiceDate" class="block text-sm font-medium text-gray-700">Next Service Date</label>
-                    <input type="date" id="editNextServiceDate" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                <!-- Next Reminder Type for Editing -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Next Service Due By:</label>
+                    <div class="flex space-x-6 mb-2">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="editNextServiceType" value="date" id="editTypeDate" class="form-radio h-4 w-4 text-blue-600" onchange="toggleEditReminderInput()">
+                            <span class="ml-2 text-gray-700">Date</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="editNextServiceType" value="mileage" id="editTypeMileage" class="form-radio h-4 w-4 text-blue-600" onchange="toggleEditReminderInput()">
+                            <span class="ml-2 text-gray-700">Mileage</span>
+                        </label>
+                    </div>
                 </div>
+
+                <!-- Next Reminder Input Fields (Dynamic for Edit) -->
+                <div id="edit-date-input-group">
+                    <label for="editNextServiceDate" class="block text-sm font-medium text-gray-700">Next Service Date</label>
+                    <input type="date" id="editNextServiceDate" class="mt-1 block w-full rounded-lg shadow-sm">
+                </div>
+                <div id="edit-mileage-input-group" class="hidden">
+                    <label for="editNextServiceMileage" class="block text-sm font-medium text-gray-700">Target Odometer (km)</label>
+                    <input type="number" id="editNextServiceMileage" min="0" class="mt-1 block w-full rounded-lg shadow-sm">
+                </div>
+
 
                 <div class="md:col-span-2 flex justify-end space-x-3 mt-4">
                     <button type="button" id="close-modal-btn" class="py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out">
@@ -201,7 +263,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, onSnapshot, collection, query, Timestamp, deleteDoc, updateDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, updateDoc, Timestamp, deleteDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // IMPORTANT: Set debug level to see detailed Firebase errors in the console
         setLogLevel('Debug');
@@ -219,11 +281,7 @@
             }
         }
         
-        // [START LOCAL CONFIGURATION INSTRUCTIONS]
-        // NOTE: If running this file locally (outside the online environment), 
-        // you MUST replace 'null' below with your actual Firebase project config object.
-        // Also, make sure 'Anonymous Authentication' is ENABLED in your Firebase Console.
-        // 👇👇👇 PASTE YOUR ENTIRE FIREBASE CONFIG OBJECT HERE 👇👇👇
+        
         const customFirebaseConfig = { 
             apiKey: "AIzaSyABAg0rPvOGD_ndhSV-rkxjet1XhKDGeVM",
             authDomain: "service-flow-c4586.firebaseapp.com",
@@ -233,7 +291,7 @@
             appId: "1:1085103223763:web:1923f92f3999e1cb767526",
             measurementId: "G-8EHVELR1E8"
            };
-        // 👆👆👆 DO NOT FORGET TO CHANGE 'null' to your object! 👆👆👆
+        
         
         // Use the environment's app ID or a local placeholder
         const appId = (typeof __app_id !== 'undefined' ? __app_id : 'service-flow-local-test');
@@ -270,6 +328,48 @@
         const deleteModal = document.getElementById('delete-modal');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         let recordToDeleteId = null; 
+        
+        // Mileage toggle elements
+        const dateInputGroup = document.getElementById('date-input-group');
+        const mileageInputGroup = document.getElementById('mileage-input-group');
+        const editDateInputGroup = document.getElementById('edit-date-input-group');
+        const editMileageInputGroup = document.getElementById('edit-mileage-input-group');
+
+
+        // --- UI TOGGLE FUNCTION ---
+        
+        // Toggles the visibility of the Date vs. Mileage inputs on the main form
+        window.toggleReminderInput = () => {
+            const isDateSelected = document.getElementById('typeDate').checked;
+            if (isDateSelected) {
+                dateInputGroup.classList.remove('hidden');
+                mileageInputGroup.classList.add('hidden');
+                document.getElementById('nextServiceMileage').removeAttribute('required');
+                document.getElementById('nextServiceDate').setAttribute('required', 'required');
+            } else {
+                dateInputGroup.classList.add('hidden');
+                mileageInputGroup.classList.remove('hidden');
+                document.getElementById('nextServiceDate').removeAttribute('required');
+                document.getElementById('nextServiceMileage').setAttribute('required', 'required');
+            }
+        };
+
+        // Toggles the visibility of the Date vs. Mileage inputs on the edit modal
+        window.toggleEditReminderInput = () => {
+            const isDateSelected = document.getElementById('editTypeDate').checked;
+            if (isDateSelected) {
+                editDateInputGroup.classList.remove('hidden');
+                editMileageInputGroup.classList.add('hidden');
+                document.getElementById('editNextServiceMileage').removeAttribute('required');
+                document.getElementById('editNextServiceDate').setAttribute('required', 'required');
+            } else {
+                editDateInputGroup.classList.add('hidden');
+                editMileageInputGroup.classList.remove('hidden');
+                document.getElementById('editNextServiceDate').removeAttribute('required');
+                document.getElementById('editNextServiceMileage').setAttribute('required', 'required');
+            }
+        };
+
 
         // --- UTILITY FUNCTIONS ---
         
@@ -293,7 +393,7 @@
                 errorGlobalEl.textContent = 'CRITICAL CONFIG ERROR: Cannot connect to Firebase. API Key or Project ID missing.';
                 errorGlobalEl.classList.remove('hidden');
                 loadingEl.classList.add('hidden');
-                dataEntryEl.classList.remove('hidden'); // Show error message on data entry area
+                dataEntryEl.classList.remove('hidden'); 
                 return;
             }
 
@@ -302,29 +402,14 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Get or set a persistent UID using localStorage
                 let savedUserId = localStorage.getItem('sf_user_id');
 
                 if (initialAuthToken) {
-                    // 1. Online Environment Sign-in
                     await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("[AUTH] Signed in using Custom Token.");
-                } else if (savedUserId) {
-                    // 2. Local/Persistent Sign-in Attempt
-                    // Note: We use the existing UID to attempt re-authentication.
-                    // This relies on the security rules allowing read/write for the UID.
-                    console.log(`[AUTH] Attempting to re-use saved UID: ${savedUserId}`);
-                    // Since re-signing in with an arbitrary UID isn't directly supported by the client SDK,
-                    // we rely on onAuthStateChanged to pick up the existing session, or we sign in anonymously
-                    // and then verify the UID.
-                    await signInAnonymously(auth);
-
                 } else {
-                    // 3. New User Sign-in
                     await signInAnonymously(auth);
                 }
 
-                // Wait for auth state to change and complete
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
@@ -370,13 +455,10 @@
 
         // --- FIREBASE DATA OPERATIONS ---
 
-        // Determine the collection path based on the user ID
         const getCollectionPath = () => {
-             // Storing in the private user space: /artifacts/{appId}/users/{userId}/service_records
             return `artifacts/${appId}/users/${userId}/service_records`;
         };
         
-        // Function to save a new service record
         async function saveServiceRecord(data) {
             if (!isAuthReady) {
                 displayMessage('App not ready. Please wait for "Online" status.', 'red');
@@ -384,10 +466,36 @@
             }
             try {
                 const collectionRef = collection(db, getCollectionPath());
+                
+                // Set the next service trigger based on the user's input type
+                let nextServiceData = {};
+                if (data.nextServiceType === 'date') {
+                    nextServiceData = {
+                        nextServiceTarget: Timestamp.fromDate(new Date(data.nextServiceDate)),
+                        nextServiceTargetValue: data.nextServiceDate
+                    };
+                } else if (data.nextServiceType === 'mileage') {
+                    nextServiceData = {
+                        nextServiceTarget: data.nextServiceMileage, // Store mileage as a number
+                        nextServiceTargetValue: data.nextServiceMileage
+                    };
+                }
+
+
                 const docRef = await addDoc(collectionRef, {
-                    ...data,
+                    customerName: data.customerName,
+                    phoneNumber: data.phoneNumber,
+                    regNumber: data.regNumber,
+                    vehicleModel: data.vehicleModel,
+                    lastServiceDate: data.lastServiceDate,
+                    lastOdometer: data.lastOdometer,
+                    serviceType: data.serviceType,
+                    preferences: data.preferences,
+                    
+                    nextServiceType: data.nextServiceType,
+                    ...nextServiceData, // Date or Mileage target
+                    
                     createdAt: Timestamp.now(),
-                    nextServiceTimestamp: Timestamp.fromDate(new Date(data.nextServiceDate)), 
                     isOptedOut: false,
                     lastReminderSent: null 
                 });
@@ -400,7 +508,6 @@
             }
         }
 
-        // Function to update an existing service record
         async function updateServiceRecord(docId, data) {
             if (!isAuthReady) {
                 displayMessage('App not ready.', 'red', document.getElementById('edit-message-box'));
@@ -409,13 +516,25 @@
             try {
                 const docRef = doc(db, getCollectionPath(), docId);
                 
-                // Prepare update data, including converting the date string back to a Timestamp
+                let nextServiceData = {};
+                if (data.nextServiceType === 'date') {
+                    nextServiceData = {
+                        nextServiceTarget: Timestamp.fromDate(new Date(data.nextServiceDate)),
+                        nextServiceTargetValue: data.nextServiceDate
+                    };
+                } else if (data.nextServiceType === 'mileage') {
+                    nextServiceData = {
+                        nextServiceTarget: parseInt(data.nextServiceMileage),
+                        nextServiceTargetValue: parseInt(data.nextServiceMileage)
+                    };
+                }
+
                 const updateData = {
                     customerName: data.customerName,
                     phoneNumber: data.phoneNumber,
-                    nextServiceDate: data.nextServiceDate,
-                    nextServiceTimestamp: Timestamp.fromDate(new Date(data.nextServiceDate)),
-                    // Note: regNumber is intentionally excluded from the update form
+                    lastOdometer: parseInt(data.lastOdometer),
+                    nextServiceType: data.nextServiceType,
+                    ...nextServiceData
                 };
 
                 await updateDoc(docRef, updateData);
@@ -428,7 +547,6 @@
             }
         }
         
-        // Function to handle the actual deletion
         async function performDelete() {
             if (!recordToDeleteId || !isAuthReady) return;
 
@@ -436,7 +554,6 @@
                 const docRef = doc(db, getCollectionPath(), recordToDeleteId);
                 await deleteDoc(docRef);
                 console.log("Document successfully deleted!");
-                // Clear state and close modal
                 recordToDeleteId = null;
                 deleteModal.classList.add('hidden');
                 displayMessage('Record deleted.', 'green');
@@ -460,6 +577,13 @@
                 snapshot.forEach(doc => {
                     records.push({ id: doc.id, ...doc.data() });
                 });
+                // Sort by next service date/mileage for better display, sorting in client since orderBy is constrained in Firestore
+                records.sort((a, b) => {
+                    const aVal = a.nextServiceType === 'date' ? a.nextServiceTarget.toDate().getTime() : a.nextServiceTarget;
+                    const bVal = b.nextServiceType === 'date' ? b.nextServiceTarget.toDate().getTime() : b.nextServiceTarget;
+                    return aVal - bVal;
+                });
+
                 renderRecords(records);
                 checkReminders(records);
             }, (error) => {
@@ -472,38 +596,60 @@
         
         function checkReminders(records) {
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normalize time to midnight
+            today.setHours(0, 0, 0, 0); 
             let dueReminders = [];
 
             records.forEach(record => {
                 if (record.isOptedOut) return;
 
-                // Firestore Timestamp must be converted back to a Date object
-                // Handle case where timestamp might not be set correctly
-                if (!record.nextServiceTimestamp || typeof record.nextServiceTimestamp.toDate !== 'function') return; 
-
-                const nextDate = record.nextServiceTimestamp.toDate();
-                nextDate.setHours(0, 0, 0, 0);
-
-                const diffTime = nextDate.getTime() - today.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
                 let trigger = null;
+                let triggerInfo = '';
 
-                if (diffDays === 7) {
-                    trigger = 'Heads-Up (7 Days Before)';
-                } else if (diffDays === 0) {
-                    trigger = 'Due Date Alert (Today!)';
-                } else if (diffDays >= -3 && diffDays < 0) {
-                    trigger = 'Overdue Follow-Up (3 Days Past)';
+                if (record.nextServiceType === 'date' && record.nextServiceTarget && typeof record.nextServiceTarget.toDate === 'function') {
+                    // --- DATE-BASED LOGIC ---
+                    const nextDate = record.nextServiceTarget.toDate();
+                    nextDate.setHours(0, 0, 0, 0);
+
+                    const diffTime = nextDate.getTime() - today.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays === 7) {
+                        trigger = 'Heads-Up (7 Days Before)';
+                        triggerInfo = `Due on ${formatDate(nextDate)}`;
+                    } else if (diffDays === 0) {
+                        trigger = 'Due Date Alert (Today!)';
+                        triggerInfo = `Due TODAY (${formatDate(nextDate)})`;
+                    } else if (diffDays >= -3 && diffDays < 0) {
+                        trigger = 'Overdue Follow-Up (3 Days Past)';
+                        triggerInfo = `Overdue since ${formatDate(nextDate)}`;
+                    }
+
+                } else if (record.nextServiceType === 'mileage' && record.nextServiceTarget) {
+                    // --- MILEAGE-BASED LOGIC (Simplified Check: Assumes staff checks current odometer) ---
+                    const targetKm = parseInt(record.nextServiceTarget);
+                    const lastKm = parseInt(record.lastOdometer);
+
+                    // For the MVP check, we'll flag it as 'Due Soon' if the recorded mileage is within a 10% tolerance
+                    // of the original service interval. 
+                    const recommendedInterval = targetKm - lastKm;
+                    const dangerZoneStart = targetKm - (recommendedInterval * 0.1); // e.g. 1000km window
+                    
+                    // Since the system doesn't know the CURRENT odometer reading, 
+                    // we must rely on the staff to update the mileage when checking reminders.
+                    // For now, we'll set a flag that the reminder is pending.
+                    
+                    // This logic would ideally run on a server with the CURRENT Odometer, 
+                    // but for the MVP UI: we flag it as "Mileage Check Due"
+                    trigger = 'Mileage Check Due';
+                    triggerInfo = `Target: ${targetKm} km`;
                 }
                 
                 if (trigger) {
                     dueReminders.push({ 
                         ...record, 
                         trigger: trigger, 
-                        // Format nextServiceDate to display correctly in the reminder card
-                        nextServiceDisplayDate: formatDate(nextDate) 
+                        triggerInfo: triggerInfo,
+                        nextServiceDisplay: record.nextServiceType === 'date' ? formatDate(record.nextServiceTarget.toDate()) : `${record.nextServiceTarget} km`,
                     });
                 }
             });
@@ -513,26 +659,35 @@
         
         // --- MODAL AND ACTION HANDLERS ---
         
-        // Function to open the Edit modal
         window.openEditModal = (record) => {
             document.getElementById('edit-doc-id').value = record.id;
             document.getElementById('editCustomerName').value = record.customerName;
             document.getElementById('editPhoneNumber').value = record.phoneNumber;
             document.getElementById('editRegNumber').value = record.regNumber;
-            // Format the Firestore timestamp back to YYYY-MM-DD for the date input
-            document.getElementById('editNextServiceDate').value = formatDate(record.nextServiceTimestamp.toDate()); 
+            document.getElementById('editLastOdometer').value = record.lastOdometer;
+            document.getElementById('edit-service-type-hidden').value = record.nextServiceType; 
+            
+            // Set radio button and initial view
+            if (record.nextServiceType === 'date') {
+                document.getElementById('editTypeDate').checked = true;
+                document.getElementById('editNextServiceDate').value = formatDate(record.nextServiceTarget.toDate());
+                document.getElementById('editNextServiceMileage').value = '';
+            } else {
+                document.getElementById('editTypeMileage').checked = true;
+                document.getElementById('editNextServiceMileage').value = record.nextServiceTarget;
+                document.getElementById('editNextServiceDate').value = '';
+            }
+            toggleEditReminderInput();
             
             editModal.classList.remove('hidden');
         };
 
-        // Function to open the Delete modal
         window.openDeleteModal = (docId, regNumber) => {
             recordToDeleteId = docId;
             document.getElementById('delete-vehicle-id').textContent = regNumber;
             deleteModal.classList.remove('hidden');
         };
 
-        // Close modal listeners
         document.getElementById('close-modal-btn').addEventListener('click', () => {
             editModal.classList.add('hidden');
         });
@@ -541,7 +696,6 @@
             recordToDeleteId = null;
         });
         
-        // Confirm delete listener
         confirmDeleteBtn.addEventListener('click', performDelete);
 
 
@@ -555,7 +709,14 @@
                 remindersDueEl.classList.remove('hidden');
                 
                 reminders.forEach(reminder => {
-                    const message = `Hi ${reminder.customerName}, this is a reminder from the Service Station. Your ${reminder.serviceType || 'Service'} for registration ${reminder.regNumber} is ${reminder.trigger.toLowerCase()}. The due date was ${reminder.nextServiceDisplayDate}. Please call us at [Station Phone] to book your appointment.`;
+                    const targetDetail = reminder.nextServiceType === 'date' ? reminder.triggerInfo : reminder.triggerInfo;
+                    
+                    let message;
+                    if (reminder.nextServiceType === 'date') {
+                        message = `Hi ${reminder.customerName}, this is a reminder from the Service Station. Your ${reminder.serviceType || 'Service'} for registration ${reminder.regNumber} is ${reminder.trigger.toLowerCase()}. ${targetDetail}. Please call us at [Station Phone] to book your appointment.`;
+                    } else {
+                         message = `Hi ${reminder.customerName}, this is a MILEAGE reminder from the Service Station for ${reminder.regNumber}. The vehicle's last recorded odometer was ${reminder.lastOdometer} km, and the next service target is ${reminder.nextServiceTarget} km. Please check the current odometer and call us at [Station Phone] to book if due.`;
+                    }
                     
                     const card = document.createElement('div');
                     card.className = 'p-3 bg-white rounded-lg shadow-sm border border-yellow-400 flex flex-col sm:flex-row justify-between items-start sm:items-center';
@@ -563,7 +724,7 @@
                     card.innerHTML = `
                         <div>
                             <p class="text-sm font-semibold text-gray-800">${reminder.customerName} - ${reminder.regNumber}</p>
-                            <p class="text-xs text-yellow-700">${reminder.trigger}</p>
+                            <p class="text-xs text-yellow-700">${reminder.trigger}: ${targetDetail}</p>
                         </div>
                         <div class="mt-2 sm:mt-0 flex space-x-2">
                             <button onclick="copyReminderText(event, '${message.replace(/'/g, "\\'")}')" class="text-xs font-medium text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out p-1 bg-blue-100 rounded-md">
@@ -580,7 +741,7 @@
 
 
         function renderRecords(records) {
-            recordsTableBodyEl.innerHTML = ''; // Clear existing rows
+            recordsTableBodyEl.innerHTML = ''; 
             
             if (records.length === 0) {
                 recordsTableBodyEl.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">No service records found. Add one above!</td></tr>';
@@ -591,25 +752,34 @@
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition duration-150 ease-in-out';
                 
-                // Determine status color based on next service date relative to today
-                const nextDate = record.nextServiceTimestamp ? record.nextServiceTimestamp.toDate() : new Date();
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
+                let nextTargetText = '';
                 let dateColor = 'text-green-600';
-                if (nextDate.getTime() < today.getTime()) {
-                    dateColor = 'text-red-600 font-semibold'; // Overdue
-                } else if (nextDate.getTime() - today.getTime() <= (7 * 24 * 60 * 60 * 1000)) {
-                    dateColor = 'text-yellow-600 font-semibold'; // Due within 7 days
+                
+                if (record.nextServiceType === 'date' && record.nextServiceTarget) {
+                    const nextDate = record.nextServiceTarget.toDate();
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    if (nextDate.getTime() < today.getTime()) {
+                        dateColor = 'text-red-600 font-semibold'; // Overdue
+                        nextTargetText = `OVERDUE: ${formatDate(nextDate)}`;
+                    } else if (nextDate.getTime() - today.getTime() <= (7 * 24 * 60 * 60 * 1000)) {
+                        dateColor = 'text-yellow-600 font-semibold'; // Due within 7 days
+                        nextTargetText = `DUE SOON: ${formatDate(nextDate)}`;
+                    } else {
+                        nextTargetText = `Date: ${formatDate(nextDate)}`;
+                    }
+                } else if (record.nextServiceType === 'mileage') {
+                    nextTargetText = `Mileage: ${record.nextServiceTarget} km`;
                 }
 
-                const recordJson = JSON.stringify(record).replace(/'/g, "\\'"); // Sanitize for use in onclick
+                const recordJson = JSON.stringify(record).replace(/'/g, "\\'");
                 
                 row.innerHTML = `
                     <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${record.customerName}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">${record.regNumber}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">${record.regNumber} (${record.vehicleModel})</td>
                     <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${record.serviceType || 'General'}</td>
-                    <td class="px-3 py-3 whitespace-nowrap text-sm ${dateColor}">${formatDate(nextDate)}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm ${dateColor}">${nextTargetText}</td>
                     <td class="px-3 py-3 whitespace-nowrap text-sm font-medium space-x-2">
                         <button onclick='openEditModal(${recordJson})' class="text-blue-600 hover:text-blue-900 transition duration-150 ease-in-out">Edit</button>
                         <button onclick="openDeleteModal('${record.id}', '${record.regNumber}')" class="text-red-600 hover:text-red-900 transition duration-150 ease-in-out">Delete</button>
@@ -628,45 +798,46 @@
             submitButton.disabled = true;
 
             try {
-                const name = document.getElementById('customerName').value;
-                const phone = document.getElementById('phoneNumber').value;
-                const regNum = document.getElementById('regNumber').value.toUpperCase();
-                const nextDate = document.getElementById('nextServiceDate').value;
-                const lastDate = document.getElementById('lastServiceDate').value;
-                const type = document.getElementById('serviceType').value;
-                const prefSMS = document.getElementById('prefSMS').checked;
-                const prefEmail = document.getElementById('prefEmail').checked;
-
-                const reminderPreferences = [];
-                if (prefSMS) reminderPreferences.push('SMS');
-                if (prefEmail) reminderPreferences.push('Email');
-
+                const type = document.querySelector('input[name="nextServiceType"]:checked').value;
+                
                 const newRecord = {
-                    customerName: name,
-                    phoneNumber: phone,
-                    regNumber: regNum,
-                    nextServiceDate: nextDate,
-                    lastServiceDate: lastDate || null,
-                    serviceType: type,
-                    preferences: reminderPreferences
+                    customerName: document.getElementById('customerName').value,
+                    phoneNumber: document.getElementById('phoneNumber').value,
+                    regNumber: document.getElementById('regNumber').value.toUpperCase(),
+                    vehicleModel: document.getElementById('vehicleModel').value,
+                    lastServiceDate: document.getElementById('lastServiceDate').value,
+                    lastOdometer: parseInt(document.getElementById('lastOdometer').value),
+                    serviceType: document.getElementById('serviceType').value,
+                    preferences: [
+                        document.getElementById('prefSMS').checked ? 'SMS' : null,
+                        document.getElementById('prefEmail').checked ? 'Email' : null,
+                    ].filter(p => p),
+                    nextServiceType: type,
+                    nextServiceDate: type === 'date' ? document.getElementById('nextServiceDate').value : null,
+                    nextServiceMileage: type === 'mileage' ? document.getElementById('nextServiceMileage').value : null
                 };
+
+                // Basic Validation Check (Mileage must be greater than last odometer)
+                if (newRecord.nextServiceType === 'mileage' && newRecord.nextServiceMileage <= newRecord.lastOdometer) {
+                    displayMessage('Target Mileage must be greater than the Last Odometer Reading!', 'red');
+                    return; // Stop execution
+                }
+
 
                 const success = await saveServiceRecord(newRecord);
 
                 if (success) {
                     displayMessage('Record successfully saved!', 'green');
-                    e.target.reset(); // Clear form on success
-                    // Ensure date fields are clear for next entry
+                    e.target.reset(); 
                     document.getElementById('lastServiceDate').value = '';
+                    toggleReminderInput(); // Reset UI state
                 } else {
-                    // Save failed, error message already displayed by saveServiceRecord
                     displayMessage('Record save failed. See console.', 'red');
                 }
             } catch (e) {
                 console.error("Form submission error:", e);
                 displayMessage('An unexpected error occurred during submission.', 'red');
             } finally {
-                // Ensure button resets no matter what happens
                 submitButton.textContent = 'Add Service Record';
                 submitButton.disabled = false;
             }
@@ -676,15 +847,23 @@
             e.preventDefault();
             
             const docId = document.getElementById('edit-doc-id').value;
-            const name = document.getElementById('editCustomerName').value;
-            const phone = document.getElementById('editPhoneNumber').value;
-            const nextDate = document.getElementById('editNextServiceDate').value;
+            const type = document.querySelector('input[name="editNextServiceType"]:checked').value;
 
             const updatedRecord = {
-                customerName: name,
-                phoneNumber: phone,
-                nextServiceDate: nextDate,
+                customerName: document.getElementById('editCustomerName').value,
+                phoneNumber: document.getElementById('editPhoneNumber').value,
+                lastOdometer: document.getElementById('editLastOdometer').value,
+                nextServiceType: type,
+                nextServiceDate: type === 'date' ? document.getElementById('editNextServiceDate').value : null,
+                nextServiceMileage: type === 'mileage' ? document.getElementById('editNextServiceMileage').value : null
             };
+
+            // Basic Validation Check
+            if (updatedRecord.nextServiceType === 'mileage' && updatedRecord.nextServiceMileage <= updatedRecord.lastOdometer) {
+                 displayMessage('Target Mileage must be greater than the Last Odometer Reading!', 'red', document.getElementById('edit-message-box'));
+                 return; 
+            }
+
 
             const success = await updateServiceRecord(docId, updatedRecord);
 
@@ -697,6 +876,9 @@
         // Expose functions globally so they can be called from onclick attributes in the dynamically created HTML
         window.openEditModal = openEditModal;
         window.openDeleteModal = openDeleteModal;
+        window.toggleReminderInput = toggleReminderInput;
+        window.toggleEditReminderInput = toggleEditReminderInput;
+        
         window.copyReminderText = (event, text) => {
             navigator.clipboard.writeText(text).then(() => {
                 event.target.textContent = 'Copied!';
@@ -712,6 +894,9 @@
 
         // --- START APPLICATION ---
         initializeFirebase();
+        // Set initial state of the form
+        window.onload = toggleReminderInput;
     </script>
 </body>
 </html>
+

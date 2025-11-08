@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Flow Reminders MVP</title>
+    <!-- Load Tailwind CSS from CDN for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font and basic styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            border-radius: 0.75rem;
+        }
+        /* Style for the confirmation modal */
+        .modal {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8">
+    <div id="app" class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-700">Service Flow Reminders</h1>
+            <p class="text-gray-600 mt-1">Quick Service Entry | Status: <span id="auth-status" class="font-semibold text-red-500">Connecting...</span></p>
+            <p id="error-message-global" class="text-sm font-medium text-red-600 mt-2 hidden">Initialization Error. Check console.</p>
+        </header>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="text-center py-12">
+            <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-2 text-gray-500">Initializing Firebase...</p>
+        </div>
+
+        <!-- Data Entry Form (Initially Hidden) -->
+        <div id="data-entry" class="card bg-white p-6 mb-8 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">1. Add New Service Record</h2>
+            <form id="service-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Customer Name (Mandatory) -->
+                <div>
+                    <label for="customerName" class="block text-sm font-medium text-gray-700">Customer Name (Required)</label>
+                    <input type="text" id="customerName" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                </div>
+                
+                <!-- Phone Number (Mandatory) -->
+                <div>
+                    <label for="phoneNumber" class="block text-sm font-medium text-gray-700">Phone Number (Required for SMS)</label>
+                    <input type="tel" id="phoneNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                </div>
+
+                <!-- Registration Number (Mandatory) -->
+                <div>
+                    <label for="regNumber" class="block text-sm font-medium text-gray-700">Vehicle Reg. Number (Required)</label>
+                    <input type="text" id="regNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border uppercase">
+                </div>
+
+                <!-- Next Service Date (Mandatory) -->
+                <div>
+                    <label for="nextServiceDate" class="block text-sm font-medium text-gray-700">Next Service Date (Required)</label>
+                    <input type="date" id="nextServiceDate" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                </div>
+                
+                <!-- Last Service Date (Optional but useful) -->
+                <div>
+                    <label for="lastServiceDate" class="block text-sm font-medium text-gray-700">Last Service Date</label>
+                    <input type="date" id="lastServiceDate" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                </div>
+                
+                <!-- Service Type (Optional but useful) -->
+                <div>
+                    <label for="serviceType" class="block text-sm font-medium text-gray-700">Service Type (e.g., Oil Change)</label>
+                    <input type="text" id="serviceType" value="Oil Change" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                </div>
+
+                <!-- Reminder Preference (Optional selection) -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Reminder Channel</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="prefSMS" value="SMS" checked class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                            <span class="ml-2 text-gray-700">SMS (Text Message)</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="prefEmail" value="Email" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                            <span class="ml-2 text-gray-700">Email</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="md:col-span-2 mt-4">
+                    <button type="submit" id="submit-btn" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out">
+                        Add Service Record
+                    </button>
+                    <p id="message-box" class="mt-2 text-center text-sm font-medium text-red-600 hidden"></p>
+                </div>
+            </form>
+        </div>
+
+        <!-- Service Records List -->
+        <div id="service-list-container" class="card bg-white p-6 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">2. All Service Records & Reminders</h2>
+            
+            <!-- Reminder List Section -->
+            <div id="reminders-due" class="mb-6 p-4 rounded-lg bg-yellow-100 border border-yellow-300 hidden">
+                <h3 class="text-xl font-semibold text-yellow-800 mb-2 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <span id="due-count">0</span> Reminders Due!
+                </h3>
+                <div id="reminder-items" class="space-y-3">
+                    <!-- Reminder cards will be inserted here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Full List of Records -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle ID</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Type</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Service</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Table rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <p id="user-id-display" class="mt-4 text-xs text-gray-400">User ID: <span id="current-user-id" class="font-mono">N/A</span></p>
+        </div>
+    </div>
+
+    <!-- Edit Modal (Hidden by default) -->
+    <div id="edit-modal" class="modal fixed inset-0 z-50 flex items-center justify-center hidden p-4">
+        <div class="modal-content card bg-white w-full max-w-lg p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Service Record</h3>
+            <form id="edit-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="edit-doc-id">
+                
+                <div>
+                    <label for="editCustomerName" class="block text-sm font-medium text-gray-700">Customer Name</label>
+                    <input type="text" id="editCustomerName" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                </div>
+                
+                <div>
+                    <label for="editPhoneNumber" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                    <input type="tel" id="editPhoneNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                </div>
+
+                <div>
+                    <label for="editRegNumber" class="block text-sm font-medium text-gray-700">Vehicle Reg. Number</label>
+                    <input type="text" id="editRegNumber" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border uppercase" disabled>
+                </div>
+
+                <div>
+                    <label for="editNextServiceDate" class="block text-sm font-medium text-gray-700">Next Service Date</label>
+                    <input type="date" id="editNextServiceDate" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                </div>
+
+                <div class="md:col-span-2 flex justify-end space-x-3 mt-4">
+                    <button type="button" id="close-modal-btn" class="py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-150 ease-in-out">
+                        Cancel
+                    </button>
+                    <button type="submit" class="py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition duration-150 ease-in-out">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+            <p id="edit-message-box" class="mt-2 text-center text-sm font-medium text-red-600 hidden"></p>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal fixed inset-0 z-50 flex items-center justify-center hidden p-4">
+        <div class="modal-content card bg-white w-full max-w-sm p-6 text-center">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Confirm Deletion</h3>
+            <p class="mb-6">Are you sure you want to delete the record for <span id="delete-vehicle-id" class="font-semibold text-blue-700"></span>?</p>
+            <div class="flex justify-center space-x-4">
+                <button type="button" id="cancel-delete-btn" class="py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-delete-btn" class="py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700">
+                    Delete Permanently
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDK Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, Timestamp, deleteDoc, updateDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // IMPORTANT: Set debug level to see detailed Firebase errors in the console
+        setLogLevel('Debug');
+
+
+        // --- FIREBASE CONFIGURATION ---
+        
+        // This is the configuration from the online environment.
+        let envConfig = null;
+        if (typeof __firebase_config !== 'undefined') {
+            try {
+                envConfig = JSON.parse(__firebase_config);
+            } catch (e) {
+                console.error("Failed to parse environment Firebase config string:", e);
+            }
+        }
+        
+        // [START LOCAL CONFIGURATION INSTRUCTIONS]
+        // NOTE: If running this file locally (outside the online environment), 
+        // you MUST replace 'null' below with your actual Firebase project config object.
+        // Also, make sure 'Anonymous Authentication' is ENABLED in your Firebase Console.
+        // 👇👇👇 PASTE YOUR ENTIRE FIREBASE CONFIG OBJECT HERE 👇👇👇
+        const customFirebaseConfig = { 
+            apiKey: "AIzaSyABAg0rPvOGD_ndhSV-rkxjet1XhKDGeVM",
+            authDomain: "service-flow-c4586.firebaseapp.com",
+            projectId: "service-flow-c4586",
+            storageBucket: "service-flow-c4586.firebasestorage.app",
+            messagingSenderId: "1085103223763",
+            appId: "1:1085103223763:web:1923f92f3999e1cb767526",
+            measurementId: "G-8EHVELR1E8"
+           };
+        // 👆👆👆 DO NOT FORGET TO CHANGE 'null' to your object! 👆👆👆
+        
+        // Use the environment's app ID or a local placeholder
+        const appId = (typeof __app_id !== 'undefined' ? __app_id : 'service-flow-local-test');
+        
+        // The final configuration used is the custom one, or the environment one if available.
+        const firebaseConfig = customFirebaseConfig || envConfig;
+        
+        // The token is only available in the online environment
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // [END LOCAL CONFIGURATION INSTRUCTIONS]
+
+
+        let db;
+        let auth;
+        let userId = 'loading';
+        let isAuthReady = false;
+
+        const authStatusEl = document.getElementById('auth-status');
+        const loadingEl = document.getElementById('loading');
+        const dataEntryEl = document.getElementById('data-entry');
+        const serviceListContainerEl = document.getElementById('service-list-container');
+        const recordsTableBodyEl = document.getElementById('records-table-body');
+        const submitButton = document.getElementById('submit-btn');
+        const messageBox = document.getElementById('message-box');
+        const remindersDueEl = document.getElementById('reminders-due');
+        const reminderItemsEl = document.getElementById('reminder-items');
+        const dueCountEl = document.getElementById('due-count');
+        const userIdDisplayEl = document.getElementById('current-user-id');
+        const errorGlobalEl = document.getElementById('error-message-global');
+        
+        // Modal elements
+        const editModal = document.getElementById('edit-modal');
+        const editForm = document.getElementById('edit-form');
+        const deleteModal = document.getElementById('delete-modal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        let recordToDeleteId = null; 
+
+        // --- UTILITY FUNCTIONS ---
+        
+        // Helper to format Date objects to YYYY-MM-DD
+        const formatDate = (date) => date.toISOString().split('T')[0];
+
+        function displayMessage(msg, type = 'red', targetEl = messageBox) {
+            targetEl.textContent = msg;
+            targetEl.classList.remove('hidden', 'text-red-600', 'text-green-600');
+            targetEl.classList.add(`text-${type}-600`);
+            setTimeout(() => {
+                targetEl.classList.add('hidden');
+            }, 5000);
+        }
+
+        // --- FIREBASE INITIALIZATION & AUTHENTICATION ---
+        
+        async function initializeFirebase() {
+            if (!firebaseConfig || !firebaseConfig.projectId || !firebaseConfig.apiKey) {
+                authStatusEl.textContent = 'ERROR: Missing Config';
+                errorGlobalEl.textContent = 'CRITICAL CONFIG ERROR: Cannot connect to Firebase. API Key or Project ID missing.';
+                errorGlobalEl.classList.remove('hidden');
+                loadingEl.classList.add('hidden');
+                dataEntryEl.classList.remove('hidden'); // Show error message on data entry area
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Get or set a persistent UID using localStorage
+                let savedUserId = localStorage.getItem('sf_user_id');
+
+                if (initialAuthToken) {
+                    // 1. Online Environment Sign-in
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("[AUTH] Signed in using Custom Token.");
+                } else if (savedUserId) {
+                    // 2. Local/Persistent Sign-in Attempt
+                    // Note: We use the existing UID to attempt re-authentication.
+                    // This relies on the security rules allowing read/write for the UID.
+                    console.log(`[AUTH] Attempting to re-use saved UID: ${savedUserId}`);
+                    // Since re-signing in with an arbitrary UID isn't directly supported by the client SDK,
+                    // we rely on onAuthStateChanged to pick up the existing session, or we sign in anonymously
+                    // and then verify the UID.
+                    await signInAnonymously(auth);
+
+                } else {
+                    // 3. New User Sign-in
+                    await signInAnonymously(auth);
+                }
+
+                // Wait for auth state to change and complete
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        
+                        // Save the UID for future persistence
+                        if (!localStorage.getItem('sf_user_id')) {
+                            localStorage.setItem('sf_user_id', userId);
+                        }
+
+                        authStatusEl.textContent = 'Online';
+                        authStatusEl.classList.remove('text-red-500');
+                        authStatusEl.classList.add('text-green-500');
+                        loadingEl.classList.add('hidden');
+                        dataEntryEl.classList.remove('hidden');
+                        serviceListContainerEl.classList.remove('hidden');
+                        userIdDisplayEl.textContent = userId;
+                        console.log("[STATUS] Firebase fully initialized. User ID:", userId);
+
+                        // Start listening for data once auth is ready
+                        setupRealtimeListener(); 
+                    } else {
+                        authStatusEl.textContent = 'Unauthenticated';
+                        isAuthReady = false;
+                        userId = 'unauthenticated'; 
+                        userIdDisplayEl.textContent = 'N/A (Unauthenticated)';
+                        loadingEl.classList.add('hidden');
+                        dataEntryEl.classList.remove('hidden');
+                        errorGlobalEl.textContent = 'ERROR: Failed to authenticate. Check Anonymous Auth in Firebase Console.';
+                        errorGlobalEl.classList.remove('hidden');
+                    }
+                });
+
+            } catch (error) {
+                authStatusEl.textContent = `Error: ${error.code || 'Initialization Failed'}`;
+                errorGlobalEl.textContent = `CRITICAL FAILURE: ${error.code || 'Initialization Failed'}. Check console (F12).`;
+                errorGlobalEl.classList.remove('hidden');
+                console.error("[CRITICAL FAILURE] Firebase initialization failed:", error);
+                loadingEl.classList.add('hidden');
+                dataEntryEl.classList.remove('hidden');
+            }
+        }
+
+        // --- FIREBASE DATA OPERATIONS ---
+
+        // Determine the collection path based on the user ID
+        const getCollectionPath = () => {
+             // Storing in the private user space: /artifacts/{appId}/users/{userId}/service_records
+            return `artifacts/${appId}/users/${userId}/service_records`;
+        };
+        
+        // Function to save a new service record
+        async function saveServiceRecord(data) {
+            if (!isAuthReady) {
+                displayMessage('App not ready. Please wait for "Online" status.', 'red');
+                return false;
+            }
+            try {
+                const collectionRef = collection(db, getCollectionPath());
+                const docRef = await addDoc(collectionRef, {
+                    ...data,
+                    createdAt: Timestamp.now(),
+                    nextServiceTimestamp: Timestamp.fromDate(new Date(data.nextServiceDate)), 
+                    isOptedOut: false,
+                    lastReminderSent: null 
+                });
+                console.log("Document written with ID: ", docRef.id);
+                return true;
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                displayMessage('Error saving record. Check console for details.', 'red');
+                return false;
+            }
+        }
+
+        // Function to update an existing service record
+        async function updateServiceRecord(docId, data) {
+            if (!isAuthReady) {
+                displayMessage('App not ready.', 'red', document.getElementById('edit-message-box'));
+                return false;
+            }
+            try {
+                const docRef = doc(db, getCollectionPath(), docId);
+                
+                // Prepare update data, including converting the date string back to a Timestamp
+                const updateData = {
+                    customerName: data.customerName,
+                    phoneNumber: data.phoneNumber,
+                    nextServiceDate: data.nextServiceDate,
+                    nextServiceTimestamp: Timestamp.fromDate(new Date(data.nextServiceDate)),
+                    // Note: regNumber is intentionally excluded from the update form
+                };
+
+                await updateDoc(docRef, updateData);
+                console.log("Document successfully updated with ID: ", docId);
+                return true;
+            } catch (e) {
+                console.error("Error updating document: ", e);
+                displayMessage('Error updating record. Check console.', 'red', document.getElementById('edit-message-box'));
+                return false;
+            }
+        }
+        
+        // Function to handle the actual deletion
+        async function performDelete() {
+            if (!recordToDeleteId || !isAuthReady) return;
+
+            try {
+                const docRef = doc(db, getCollectionPath(), recordToDeleteId);
+                await deleteDoc(docRef);
+                console.log("Document successfully deleted!");
+                // Clear state and close modal
+                recordToDeleteId = null;
+                deleteModal.classList.add('hidden');
+                displayMessage('Record deleted.', 'green');
+
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                deleteModal.classList.add('hidden');
+                displayMessage('Error deleting record. Check console for details.', 'red');
+            }
+        }
+        
+        // --- REAL-TIME DATA LISTENER ---
+        
+        function setupRealtimeListener() {
+            if (!isAuthReady) return;
+            
+            const recordsQuery = collection(db, getCollectionPath());
+
+            onSnapshot(recordsQuery, (snapshot) => {
+                const records = [];
+                snapshot.forEach(doc => {
+                    records.push({ id: doc.id, ...doc.data() });
+                });
+                renderRecords(records);
+                checkReminders(records);
+            }, (error) => {
+                console.error("Error listening to collection:", error);
+                displayMessage('Error loading records. Please refresh.', 'red');
+            });
+        }
+        
+        // --- REMINDER LOGIC (Simulated Backend Cron) ---
+        
+        function checkReminders(records) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize time to midnight
+            let dueReminders = [];
+
+            records.forEach(record => {
+                if (record.isOptedOut) return;
+
+                // Firestore Timestamp must be converted back to a Date object
+                // Handle case where timestamp might not be set correctly
+                if (!record.nextServiceTimestamp || typeof record.nextServiceTimestamp.toDate !== 'function') return; 
+
+                const nextDate = record.nextServiceTimestamp.toDate();
+                nextDate.setHours(0, 0, 0, 0);
+
+                const diffTime = nextDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let trigger = null;
+
+                if (diffDays === 7) {
+                    trigger = 'Heads-Up (7 Days Before)';
+                } else if (diffDays === 0) {
+                    trigger = 'Due Date Alert (Today!)';
+                } else if (diffDays >= -3 && diffDays < 0) {
+                    trigger = 'Overdue Follow-Up (3 Days Past)';
+                }
+                
+                if (trigger) {
+                    dueReminders.push({ 
+                        ...record, 
+                        trigger: trigger, 
+                        // Format nextServiceDate to display correctly in the reminder card
+                        nextServiceDisplayDate: formatDate(nextDate) 
+                    });
+                }
+            });
+
+            renderRemindersDue(dueReminders);
+        }
+        
+        // --- MODAL AND ACTION HANDLERS ---
+        
+        // Function to open the Edit modal
+        window.openEditModal = (record) => {
+            document.getElementById('edit-doc-id').value = record.id;
+            document.getElementById('editCustomerName').value = record.customerName;
+            document.getElementById('editPhoneNumber').value = record.phoneNumber;
+            document.getElementById('editRegNumber').value = record.regNumber;
+            // Format the Firestore timestamp back to YYYY-MM-DD for the date input
+            document.getElementById('editNextServiceDate').value = formatDate(record.nextServiceTimestamp.toDate()); 
+            
+            editModal.classList.remove('hidden');
+        };
+
+        // Function to open the Delete modal
+        window.openDeleteModal = (docId, regNumber) => {
+            recordToDeleteId = docId;
+            document.getElementById('delete-vehicle-id').textContent = regNumber;
+            deleteModal.classList.remove('hidden');
+        };
+
+        // Close modal listeners
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            editModal.classList.add('hidden');
+        });
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+            deleteModal.classList.add('hidden');
+            recordToDeleteId = null;
+        });
+        
+        // Confirm delete listener
+        confirmDeleteBtn.addEventListener('click', performDelete);
+
+
+        // --- DOM RENDERING ---
+        
+        function renderRemindersDue(reminders) {
+            reminderItemsEl.innerHTML = ''; 
+            dueCountEl.textContent = reminders.length;
+            
+            if (reminders.length > 0) {
+                remindersDueEl.classList.remove('hidden');
+                
+                reminders.forEach(reminder => {
+                    const message = `Hi ${reminder.customerName}, this is a reminder from the Service Station. Your ${reminder.serviceType || 'Service'} for registration ${reminder.regNumber} is ${reminder.trigger.toLowerCase()}. The due date was ${reminder.nextServiceDisplayDate}. Please call us at [Station Phone] to book your appointment.`;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'p-3 bg-white rounded-lg shadow-sm border border-yellow-400 flex flex-col sm:flex-row justify-between items-start sm:items-center';
+                    
+                    card.innerHTML = `
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">${reminder.customerName} - ${reminder.regNumber}</p>
+                            <p class="text-xs text-yellow-700">${reminder.trigger}</p>
+                        </div>
+                        <div class="mt-2 sm:mt-0 flex space-x-2">
+                            <button onclick="copyReminderText(event, '${message.replace(/'/g, "\\'")}')" class="text-xs font-medium text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out p-1 bg-blue-100 rounded-md">
+                                Copy SMS Text
+                            </button>
+                        </div>
+                    `;
+                    reminderItemsEl.appendChild(card);
+                });
+            } else {
+                remindersDueEl.classList.add('hidden');
+            }
+        }
+
+
+        function renderRecords(records) {
+            recordsTableBodyEl.innerHTML = ''; // Clear existing rows
+            
+            if (records.length === 0) {
+                recordsTableBodyEl.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-gray-500">No service records found. Add one above!</td></tr>';
+                return;
+            }
+
+            records.forEach(record => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition duration-150 ease-in-out';
+                
+                // Determine status color based on next service date relative to today
+                const nextDate = record.nextServiceTimestamp ? record.nextServiceTimestamp.toDate() : new Date();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                let dateColor = 'text-green-600';
+                if (nextDate.getTime() < today.getTime()) {
+                    dateColor = 'text-red-600 font-semibold'; // Overdue
+                } else if (nextDate.getTime() - today.getTime() <= (7 * 24 * 60 * 60 * 1000)) {
+                    dateColor = 'text-yellow-600 font-semibold'; // Due within 7 days
+                }
+
+                const recordJson = JSON.stringify(record).replace(/'/g, "\\'"); // Sanitize for use in onclick
+                
+                row.innerHTML = `
+                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${record.customerName}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">${record.regNumber}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-500">${record.serviceType || 'General'}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm ${dateColor}">${formatDate(nextDate)}</td>
+                    <td class="px-3 py-3 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button onclick='openEditModal(${recordJson})' class="text-blue-600 hover:text-blue-900 transition duration-150 ease-in-out">Edit</button>
+                        <button onclick="openDeleteModal('${record.id}', '${record.regNumber}')" class="text-red-600 hover:text-red-900 transition duration-150 ease-in-out">Delete</button>
+                    </td>
+                `;
+                recordsTableBodyEl.appendChild(row);
+            });
+        }
+        
+        // --- FORM HANDLING ---
+
+        document.getElementById('service-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            submitButton.textContent = 'Saving...';
+            submitButton.disabled = true;
+
+            try {
+                const name = document.getElementById('customerName').value;
+                const phone = document.getElementById('phoneNumber').value;
+                const regNum = document.getElementById('regNumber').value.toUpperCase();
+                const nextDate = document.getElementById('nextServiceDate').value;
+                const lastDate = document.getElementById('lastServiceDate').value;
+                const type = document.getElementById('serviceType').value;
+                const prefSMS = document.getElementById('prefSMS').checked;
+                const prefEmail = document.getElementById('prefEmail').checked;
+
+                const reminderPreferences = [];
+                if (prefSMS) reminderPreferences.push('SMS');
+                if (prefEmail) reminderPreferences.push('Email');
+
+                const newRecord = {
+                    customerName: name,
+                    phoneNumber: phone,
+                    regNumber: regNum,
+                    nextServiceDate: nextDate,
+                    lastServiceDate: lastDate || null,
+                    serviceType: type,
+                    preferences: reminderPreferences
+                };
+
+                const success = await saveServiceRecord(newRecord);
+
+                if (success) {
+                    displayMessage('Record successfully saved!', 'green');
+                    e.target.reset(); // Clear form on success
+                    // Ensure date fields are clear for next entry
+                    document.getElementById('lastServiceDate').value = '';
+                } else {
+                    // Save failed, error message already displayed by saveServiceRecord
+                    displayMessage('Record save failed. See console.', 'red');
+                }
+            } catch (e) {
+                console.error("Form submission error:", e);
+                displayMessage('An unexpected error occurred during submission.', 'red');
+            } finally {
+                // Ensure button resets no matter what happens
+                submitButton.textContent = 'Add Service Record';
+                submitButton.disabled = false;
+            }
+        });
+        
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const docId = document.getElementById('edit-doc-id').value;
+            const name = document.getElementById('editCustomerName').value;
+            const phone = document.getElementById('editPhoneNumber').value;
+            const nextDate = document.getElementById('editNextServiceDate').value;
+
+            const updatedRecord = {
+                customerName: name,
+                phoneNumber: phone,
+                nextServiceDate: nextDate,
+            };
+
+            const success = await updateServiceRecord(docId, updatedRecord);
+
+            if (success) {
+                editModal.classList.add('hidden');
+                displayMessage('Record successfully updated!', 'green');
+            }
+        });
+        
+        // Expose functions globally so they can be called from onclick attributes in the dynamically created HTML
+        window.openEditModal = openEditModal;
+        window.openDeleteModal = openDeleteModal;
+        window.copyReminderText = (event, text) => {
+            navigator.clipboard.writeText(text).then(() => {
+                event.target.textContent = 'Copied!';
+                setTimeout(() => {
+                    event.target.textContent = 'Copy SMS Text';
+                }, 1500);
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+                displayMessage('Automatic copy failed. Please try again.', 'red');
+            });
+        };
+
+
+        // --- START APPLICATION ---
+        initializeFirebase();
+    </script>
+</body>
+</html>
